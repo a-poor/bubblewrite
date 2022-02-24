@@ -1,4 +1,4 @@
-package main
+package textgrid
 
 import (
 	"strings"
@@ -73,6 +73,16 @@ func (tg *TextGrid) WidthAt(y int) int {
 	return len(tg.text[y]) // TODO: check for out of range
 }
 
+func (tg *TextGrid) ValidateRunePos(y, x int) bool {
+	return ((y >= 0 && y < tg.NRows()) &&
+		(x >= 0 && x < tg.WidthAt(y)))
+}
+
+func (tg *TextGrid) ValidateCursorPos(y, x int) bool {
+	return ((y >= 0 && y < tg.NRows()) &&
+		(x >= 0 && x <= tg.WidthAt(y)))
+}
+
 func (tg *TextGrid) AddLineAt(y int) {
 	before, after := tg.text[:y], tg.text[y:]
 	tg.text = append(
@@ -127,4 +137,31 @@ func (tg *TextGrid) SplitLineAt(y, x int) {
 	// Move the text after `x` to the new line
 	tg.text[y+1] = tg.text[y][x:]
 	tg.text[y] = tg.text[y][:x]
+}
+
+// JoinLineUp merges the line at `y` with the line above it.
+func (tg *TextGrid) JoinLineUp(y int) {
+	if y == 0 || y >= tg.NRows() {
+		return // TODO: error?
+	}
+	tg.text[y-1] = append(tg.text[y-1], tg.text[y]...)
+	tg.RemoveLineAt(y)
+}
+
+func (tg *TextGrid) DeleteRuneAt(y, x int) {
+	if y == 0 && x == 0 {
+		return // Do nothing
+	}
+
+	// If at the start of a line, join with the previous line
+	if x == 0 {
+		tg.JoinLineUp(y)
+		return
+	}
+
+	// Otherwise, just remove the rune
+	tg.text[y] = append(
+		tg.text[y][:x-1],
+		tg.text[y][x:]...,
+	)
 }
