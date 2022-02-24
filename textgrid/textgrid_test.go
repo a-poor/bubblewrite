@@ -58,7 +58,7 @@ func TestAddRune(t *testing.T) {
 		tg.AddRuneAt(0, i, r)
 	}
 	if s := tg.String(); s != "Hello" {
-		t.Errorf("Expected 'Hello', got %s", s)
+		t.Errorf("Expected %q, got %q", "Hello", s)
 	}
 }
 

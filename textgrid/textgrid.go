@@ -84,11 +84,15 @@ func (tg *TextGrid) ValidateCursorPos(y, x int) bool {
 }
 
 func (tg *TextGrid) AddLineAt(y int) {
-	before, after := tg.text[:y], tg.text[y:]
-	tg.text = append(
-		before,
-		append([][]rune{{}}, after...)...,
-	)
+	// Pull out the lines before and after the new line
+	before := append([][]rune{}, tg.text[:y]...)
+	after := append([][]rune{}, tg.text[y:]...)
+
+	// Add the new line after the first section
+	txtNext := append(before, []rune{})
+
+	// Add the second section and reassign to `.text`
+	tg.text = append(txtNext, after...)
 }
 
 func (tg *TextGrid) AddLine() {
@@ -103,13 +107,24 @@ func (tg *TextGrid) RemoveLineAt(y int) {
 }
 
 func (tg *TextGrid) AddRuneAt(y, x int, r rune) {
-	tg.text[y] = append(
-		append(
-			tg.text[y][:x],
-			r,
-		),
-		tg.text[y][x:]...,
-	)
+	// Create a place to store the new line
+	newLine := make([]rune, len(tg.text[y])+1)
+
+	for i, r := range tg.text[y] {
+		switch {
+		case i < x: // Before insertion, keep the same position
+			newLine[i] = tg.text[y][i]
+
+		case i == x: // Insert the new rune at the selected pos
+			newLine[i] = r
+
+		case i > x: // After insertion, shift one right
+			newLine[i+1] = tg.text[y][i]
+		}
+	}
+
+	// Reassign the line
+	tg.text[y] = newLine
 }
 
 func (tg *TextGrid) AddRuneToEndOfLine(y int, r rune) {

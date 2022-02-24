@@ -2,11 +2,9 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/a-poor/bubblewrite/textgrid"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type TextArea struct {
@@ -29,12 +27,12 @@ func New() *TextArea {
 
 func (ta *TextArea) moveCursorRight() {
 	// If all the way to the right on the last line, do nothing
-	if ta.cursor.x == ta.text.WidthAt(ta.cursor.y) && ta.cursor.y == ta.text.NRows() {
+	if ta.cursor.x == ta.text.WidthAt(ta.cursor.y) && ta.cursor.y >= ta.text.NRows()-1 {
 		return
 	}
 
 	// If at the end of a (non-last) line, move down a line
-	if ta.cursor.x == ta.text.WidthAt(ta.cursor.y) {
+	if ta.cursor.x >= ta.text.WidthAt(ta.cursor.y)-1 {
 		ta.cursor.y++
 		ta.cursor.x = 0
 		return
@@ -51,7 +49,7 @@ func (ta *TextArea) moveCursorLeft() {
 	}
 
 	// If at the start of a (non-first) line, move up a line
-	if ta.cursor.x == ta.text.WidthAt(ta.cursor.y) {
+	if ta.cursor.x == 0 {
 		ta.cursor.y--
 		ta.cursor.x = ta.text.WidthAt(ta.cursor.y)
 		return
@@ -74,7 +72,7 @@ func (ta *TextArea) moveCursorUp() {
 }
 
 func (ta *TextArea) moveCursorDown() {
-	if ta.cursor.y == ta.text.NRows() {
+	if ta.cursor.y >= ta.text.NRows()-1 {
 		ta.cursor.x = ta.text.WidthAt(ta.cursor.y)
 		return
 	}
@@ -95,14 +93,18 @@ func (ta *TextArea) deleteRuneAtCursor() {
 		return
 	}
 
+	var movedLine bool
 	nextX := ta.cursor.x - 1
 	if ta.cursor.x == 0 {
 		nextX = ta.text.WidthAt(ta.cursor.y - 1)
+		movedLine = true
 	}
 
 	ta.text.DeleteRuneAt(ta.cursor.y, ta.cursor.x)
 	ta.cursor.x = nextX
-	ta.cursor.y--
+	if movedLine {
+		ta.cursor.y--
+	}
 }
 
 func (ta *TextArea) insertNewlineAtCursor() {
@@ -147,7 +149,6 @@ func (ta *TextArea) Update(msg tea.Msg) (*TextArea, tea.Cmd) {
 
 		case len(k) == 1:
 			ta.insertRuneAtCursor([]rune(k)[0])
-
 		}
 
 	case tea.WindowSizeMsg:
@@ -159,27 +160,38 @@ func (ta *TextArea) Update(msg tea.Msg) (*TextArea, tea.Cmd) {
 }
 
 func (ta *TextArea) View() string {
-	// Create the line-numbers side-bar
-	var nums []string
-	for i := 0; i < ta.h; i++ {
-		nums = append(
-			nums,
-			fmt.Sprintf(
-				"%d",
-				i+1+ta.offset,
-			),
-		)
-	}
-	lineNums := strings.Join(nums, "\n")
-	lineNums = lineNumberStyle.Render(lineNums)
+	// Get the raw rune text
+	txt := ta.text.GetText()
 
-	// Format the result
-	block := ta.text.String()
+	// Create a var to store the output
+	var block string
+	for i, line := range txt {
+		if i != 0 {
+			block += "\n"
+		}
+		s := string(line)
+
+		if ta.cursor.y != i {
+			block += regularStyle.Render(s)
+			continue
+		}
+
+		// Otherwise, it's the active line
+		s = ""
+		for j, r := range append(line, ' ') {
+			if j == ta.cursor.x {
+				s += cursorStyle.Render(string(r))
+			} else {
+				s += activeLineStyle.Render(string(r))
+			}
+		}
+		block += s
+	}
 
 	// Join them and return
-	return lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		lineNums,
+	return fmt.Sprintf(
+		"Cursor: %+v\n%s",
+		ta.cursor,
 		block,
 	)
 }
