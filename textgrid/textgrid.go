@@ -1,7 +1,14 @@
 package textgrid
 
 import (
-	"strings"
+	"errors"
+	"fmt"
+)
+
+var (
+	ErrOutOfBounds    = errors.New("out of bounds")
+	ErrColOutOfBounds = fmt.Errorf("column out of bounds: %w", ErrOutOfBounds)
+	ErrRowOutOfBounds = fmt.Errorf("row out of bounds: %w", ErrOutOfBounds)
 )
 
 type TextGrid struct {
@@ -15,10 +22,7 @@ func NewTextGrid() *TextGrid {
 }
 
 func NewTextGridFromString(s string) *TextGrid {
-	var text [][]rune
-	for _, line := range strings.Split(s, "\n") {
-		text = append(text, []rune(line))
-	}
+	text := gridify(s)
 	return &TextGrid{text}
 }
 
@@ -34,15 +38,11 @@ func (tg *TextGrid) String() string {
 }
 
 func (tg *TextGrid) GetText() [][]rune {
-	var text [][]rune
-	for _, line := range tg.text {
-		text = append(text, append([]rune{}, line...))
-	}
-	return text
+	return duplicate2D(tg.text)
 }
 
 func (tg *TextGrid) SetText(text [][]rune) {
-	tg.text = text
+	tg.text = duplicate2D(text)
 }
 
 func (tg *TextGrid) NRows() int {
@@ -69,8 +69,19 @@ func (tg *TextGrid) MinCols() int {
 	return min
 }
 
-func (tg *TextGrid) WidthAt(y int) int {
-	return len(tg.text[y]) // TODO: check for out of range
+func (tg *TextGrid) WidthAt(y int) (int, error) {
+	if y < 0 || y >= tg.NRows() {
+		return 0, ErrColOutOfBounds
+	}
+	return len(tg.text[y]), nil
+}
+
+func (tg *TextGrid) WidthAtMust(y int) int {
+	res, err := tg.WidthAt(y)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
 
 func (tg *TextGrid) ValidateRunePos(y, x int) bool {
